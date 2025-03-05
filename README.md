@@ -1,2 +1,0 @@
-## Aquí hablaremos de RNAseq
-
