@@ -1,0 +1,251 @@
+---
+title: "Ejercicio"
+output: 
+  html_document:
+---
+
+```{r}
+if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
+BiocManager::install(c("DESeq2", "EnhancedVolcano"))
+install.packages(c("ggplot2", "pheatmap"))
+
+library(DESeq2)
+library(ggplot2)
+library(EnhancedVolcano)
+library(pheatmap)
+
+setwd("/home/alumno27/Curso_RNAseq/")
+
+countData <- read.table("matriz_arabidopsis_2023.txt", header=TRUE, row.names=1, sep="\t")
+column_order <- c("control_1", "control_2", "control_3", "treatment_1", "treatment_2","treatment_3")
+countData <- countData[, column_order]
+
+condition <- factor(rep(c("Control", "Treatment"), each=3))
+colData <- data.frame(row.names = colnames(countData), condition)
+
+
+barplot(as.matrix(countData[1,]))
+countData[,1]
+
+plot(countData$treatment_2, countData$treatment_3)
+
+plot(log2(countData$treatment_1), log2(countData$treatment_2))
+
+
+dds <- DESeqDataSetFromMatrix(countData = countData, colData = colData, design = ~condition)
+dds <- dds[rowSums(counts(dds)) > 10,]
+dds <- DESeq(dds)
+
+
+
+
+res <- results(dds)
+res <- res[order(res$padj),]
+
+summary(res)
+
+names(res)
+
+plot(res$log2FoldChange)
+
+rld <- rlog(dds, blind = FALSE)
+plotPCA(rld, intgroup = "condition") +
+  geom_text(aes(label = name), vjust = 0.5) +
+  theme_minimal()
+
+EnhancedVolcano(res, lab = rownames(res), x = "log2FoldChange", y = "pvalue")
+
+plotMA(res, alpha = 0.05, main = "Diferencias de Expresión: Tratamiento vs Control", ylim = c(-10, 10))
+
+
+
+top_genes <- row.names(res)[1:20]
+counts_top <- log2(counts(dds, normalized = TRUE)[top_genes,] + 1)
+pheatmap(counts_top, annotation_col = colData)
+
+
+library(ggplot2)
+library(pheatmap)
+library(ggrepel)
+
+data(iris)
+head(iris)
+
+dim(iris)
+iris$Sepal.Length
+boxplot(Sepal.Width ~ Species, data = iris)
+
+
+ggplot(iris, aes(x = Sepal.Width, y = Sepal.Length, color = Species)) +
+  geom_point(size = 2) +
+  theme_minimal() +
+  labs(title = "Gráfico de Dispersión de Sepal.Length vs Sepal.Width",
+       x = "Longitud del Sépalo",
+       y = "Ancho del Sépalo")
+
+ggplot(iris, aes(x = Species, y = Sepal.Length, fill = Species)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Distribución de Sepal.Length por Especie",
+       x = "Especie",
+       y = "Longitud del Sépalo")
+
+ggplot(iris, aes(x = Species, fill = Species)) +
+  geom_bar() +
+  theme_minimal() +
+  labs(title = "Cantidad de Observaciones por Especie",
+       x = "Especie",
+       y = "Conteo")
+
+ggplot(iris, aes(x = Sepal.Length, y = Petal.Length, color = Species)) +
+  geom_line() +
+  theme_minimal() +
+  labs(title = "Relación entre Sepal.Length y Petal.Length",
+       x = "Longitud del Sépalo",
+       y = "Longitud del Pétalo")
+
+ggplot(iris, aes(x = Sepal.Length, fill = Species)) +
+  geom_density(alpha = 0.5) +
+  theme_minimal() +
+  labs(title = "Densidad de la Longitud del Sépalo por Especie",
+       x = "Longitud del Sépalo",
+       y = "Densidad")
+
+ggplot(iris, aes(x = Sepal.Length, y = Sepal.Width, color = Species)) +
+  geom_point() +
+  facet_wrap(~ Species) +
+  theme_minimal() +
+  labs(title = "Gráfico de Dispersión por Especie",
+       x = "Longitud del Sépalo",
+       y = "Ancho del Sépalo")
+
+ggplot(iris, aes(x = Species, y = Sepal.Length, fill = Species)) +
+  geom_violin(alpha = 0.7) +
+  theme_minimal() +
+  labs(title = "Distribución de Sepal.Length por Especie",
+       x = "Especie",
+       y = "Longitud del Sépalo")
+
+if (!require("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+
+BiocManager::install("edgeR")
+
+BiocManager::install("limma")
+
+library(limma)
+library(edgeR)
+library(limma)
+library(edgeR)
+
+setwd("/home/alumno27/Curso_RNAseq")
+list.files()
+
+counts = read.table("matriz_arabidopsis_2023.txt", header=TRUE, row.names = 1, sep="\t")
+
+outpath = "/home/alumno27/Curso_RNAseq"
+
+
+dir.create(outpath, showWarnings=FALSE)
+
+counts = counts[rowSums(cpm(counts) >= 1) >=1,]
+dim(counts)
+
+#esto es para declarar los grupos que usaremos en el objeto DGEList (objeto de edgeR)
+grp = sub("..$", "", colnames(counts)) 
+
+
+#vean el objeto
+grp
+
+dge = DGEList(counts=counts, group=grp)
+
+dge
+
+dgeNorm = calcNormFactors(dge)
+
+#Puedes visualizar los factores de normalización
+dgeNorm$samples
+
+dgeNorm = estimateCommonDisp(dgeNorm)
+
+#podemos visualizar este valor (si no tuvieran replicas es posible ingresar este valor manualmente, pero no es ideal)
+dgeNorm$common.dispersion
+
+
+diff_exp = exactTest(dgeNorm, dispersion = dgeNorm$common.dispersion, pair = c("control", "treatment" ))
+diff_exp2 = exactTest(dgeNorm, dispersion = dgeNorm$common.dispersion, pair = c("control", "treatment" ))
+
+#ahora visualizaremos el objeto resultante de la prueba exacta de Fisher (objeto DGEExact)
+
+diff_exp 
+
+top = topTags(diff_exp)
+plot(top$table$logFC)
+
+
+# guardar la tabla con todos los valores en un objeto de R y poder usarlo posteriormente es importante para nuestros fines.
+
+deTab = topTags(diff_exp, n=Inf)$table
+
+#esta tabla puede ser tratada con los comandos de selección y comparación que ya hemos visto
+
+deTab[c(15,30),]
+
+
+row.names(deTab)[deTab$logFC > 5]  #recuerden que el FC esta dado en log2.
+
+
+
+
+deGenes = rownames(deTab)[deTab$FDR < 0.05 & abs(deTab$logFC) > 2]
+down=row.names(deTab)[deTab$logFC< -2]
+selected_rows <- deTab[deTab$logFC > 2 & deTab$FDR < 0.05,]
+result <- selected_rows[, c("logFC", "FDR")]
+
+write.table(result, file = "workshop")
+
+
+
+#para saber el número total de genes que pasan estos filtros (genes diferenciales según nuestro criterio)
+
+print(paste("total de diferenciales:", length(deGenes)))
+
+print(paste("número de genes inducidos:", length(over)))
+
+print(paste("número de genes reprimidos:", length(down)))
+
+plotSmear(dge, de.tags=deGenes, ylab = "WT-sc vs WT-sl")
+
+library("gplots")
+library("RColorBrewer")
+
+#normalizamos nuestros datos de expresión por cuentas por millón
+normalizados= cpm(counts)
+
+#extraemos la expresión de los genes diferenciales
+normalizados_diferenciales= normalizados[down,]
+
+#veamos cómo se ve esta tablita
+head(normalizados_diferenciales)
+
+heatmap(normalizados_diferenciales)
+
+
+pca <- princomp(normalizados_diferenciales[,c(1:6)])
+plot(pca$loadings, col=as.factor(colnames(normalizados_diferenciales[,c(1:6)])),  pch=19, cex=2, main="con nitrógeno")
+text(pca$loadings, as.vector(colnames(normalizados_diferenciales[,c(1:6)])), pos=3, cex=0.8)
+
+
+
+
+with(deTab, plot(logFC, -log10(FDR), pch=20, cex=0.8, col="black", main="WT+N vs WT-N", xlim=c(-8, 8), ylim=c(0,300)))
+text(deTab[1:20,]$logFC,-log(deTab[1:20,]$FDR,10),labels=rownames(deTab[1:20,]),cex=0.7,pos=1)
+with(subset(deTab, FDR<.01 & abs(logFC)>2), points(logFC, -log10(FDR), pch=20, cex=0.5, col="green"))
+abline(v=2,lty=2, col="blue")
+abline(v=-2,lty=2, col="blue")
+legend("bottomright","Up_regulated",cex=1)
+legend("bottomleft","Down_regulated",cex=1)
+
+write.table(over,)
+```
